@@ -8,6 +8,8 @@ This is the Base project. We can easily fork this project for rapid development
 ### User Module
 
 It includes all the api's of user module
+
+
 * Signup
   ```sh
   Base_URL/api/v1/users   POST Request
