@@ -19,9 +19,9 @@ It includes all the api's of user module
   Base_URL/api/v1/users/login   POST Request
   ```
 
-* Login
+* Forgot Password
   ```sh
-  Base_URL/api/v1/users/login   POST Request
+  Base_URL/api/v1/users/forgot_password   PUT Request
 
 
 
