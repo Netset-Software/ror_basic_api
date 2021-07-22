@@ -13,18 +13,31 @@ It includes all the api's of user module
 * Signup
   ```sh
   Base_URL/api/v1/users   POST Request
+  ```
+  - Body(row-data/form-data)
+  {email: string, password: string, device_id: string, device_type: string}
 
 * Login
   ```sh
   Base_URL/api/v1/users/login   POST Request
   ```
-
+    - Body(row-data/form-data)
+  {email: string, password: string}
+  
+* Create Profile
+  ```sh
+  Base_URL/api/v1/users   PUT Request
+  ```
+    - Body(form-data)
+  {first_name: string, last_name: string, dob: datetime, country_code: string, phone: string, lat: decimal, lng: decimal, location: string, image: file}
+  
 * Forgot Password
   ```sh
   Base_URL/api/v1/users/forgot_password   PUT Request
-
-
-
+  ```
+  - Body(row-data/form-data)
+  {email: string}
+  
 
 ## Usage
 
