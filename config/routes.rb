@@ -9,7 +9,8 @@ Rails.application.routes.draw do
           post "users" => "users#sign_up"
           put "users" => "users#create_profile"
           post "users/forgot_password" => "users#forgot_password"
-
+          get "users/reset_password" => "users#reset_password"
+          get "users/change_password" => "users#change_password"
     end
   end
 

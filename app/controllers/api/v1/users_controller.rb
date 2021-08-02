@@ -1,6 +1,6 @@
 class Api::V1::UsersController < Api::V1::ApplicationController
 
-  before_action :authenticate_api_user, except: [:sign_in, :sign_up, :forgot_password]
+  before_action :authenticate_api_user, except: [:sign_in, :sign_up, :forgot_password, :reset_password]
 
   require 'jwt'
 
@@ -13,9 +13,9 @@ class Api::V1::UsersController < Api::V1::ApplicationController
       payload = { "data": user, exp: expire_time }
       hsh = {}
       hsh[:message] = "Log-In Successfully"
-      hsh[:token] = JWT.encode payload, hmac_secret, 'HS256'
+      hsh[:token] = jwt_token payload
       hsh[:user] = user
-      render :json => hsh.to_json
+      render json: hsh.to_json
     rescue Exception => e
       error_handle_bad_request(e)
     end
@@ -27,12 +27,12 @@ class Api::V1::UsersController < Api::V1::ApplicationController
       @user = User.find_by(email: params[:user][:email])
       raise "Email Already Exist" if @user.present?
       @user = User.create!(signup_params)
-      user = @user.as_json(except: [:device_id, :device_type, :password])
+      user = @user.user_obj
       payload = { "data": user, exp: expire_time }
       hsh = {}
       hsh[:message] = "Sign-Up Successfully"
-      hsh[:token] = JWT.encode payload, hmac_secret, 'HS256'
-      hsh[:user] = @user.as_json(except: [:device_id, :device_type, :password])
+      hsh[:token] = jwt_token payload
+      hsh[:user] = user
       render json: hsh.to_json
     rescue Exception => e
       error_handle_bad_request(e)
@@ -44,7 +44,7 @@ class Api::V1::UsersController < Api::V1::ApplicationController
       @current_api_user.update!(create_profile_params)
       hsh = {}
       hsh[:message] = "Profile Updated Successfully"
-      hsh[:user] = @current_api_user.as_json(except: [:device_id, :device_type, :password])
+      hsh[:user] = @current_api_user.user_obj
       render json: hsh.to_json
     rescue Exception => e
       error_handle_bad_request(e)
@@ -53,29 +53,44 @@ class Api::V1::UsersController < Api::V1::ApplicationController
 
   def forgot_password
     begin
-      raise "Incomplete Params" if !params[:email].present?
+      raise "Email not present" if params[:email].present?
       @user = User.find_by(email: params[:email])
-      raise "Email Doesn't Exist" if !@user.present?
-      hsh = {}
-      hsh[:message] = "Email has been sent to your registered email!"
-      render json: hsh.to_json
+      raise "Email address not found. Please check and try again." unless @user.present?
+      @user.generate_password_token!
+      ResetPasswordMailer.send_reset_password_email(@user).deliver_now
+      render json: {status: 'An email has been sent with a link to reset your password.'}, status: :ok
     rescue Exception => e
       error_handle_bad_request(e)
     end
   end
 
-  # def change_password
-  #   begin
-  #     raise "Incomplete Params" if !params[:password].present?
-  #     @user = User.find_by(email: params[:email])
-  #     raise "Email Doesn't Exist" if !@user.present?
-  #     hsh = {}
-  #     hsh[:message] = "Email has been sent to your registered email!"
-  #     render json: hsh.to_json
-  #   rescue Exception => e
-  #     error_handle_bad_request(e)
-  #   end
-  # end
+  def reset_password
+    begin
+      token = params[:token].to_s
+      raise "Token not present" if params[:token].present?
+      user = User.find_by(reset_password_token: token)
+      if user.present? && user.password_token_valid?
+        user.reset_password!(params[:password])
+        render json: {status: 'Password reset successfully'}, status: :ok
+      else
+        render json: {error: 'Link not valid or expired. Try generating a new link.'}, status: :not_found
+      end
+    rescue Exception => e
+      error_handle_bad_request(e)
+    end
+  end
+
+  def change_password
+    begin
+      raise "Incomplete params"  unless params[:new_password].present? || params[:old_password].present?
+      raise "Old Password is invalid" if @current_api_user.valid_password?(params[:old_password])
+      raise "New Password should not be the same as Old Password." if (params[:new_password] == params[:old_password])
+      @current_api_user.update!(password: params[:new_password])
+      render json: {status: 'Password updated successfully'}, status: :ok
+    rescue Exception => e
+      error_handle_bad_request(e)
+    end
+  end
 
   protected
 
@@ -85,10 +100,6 @@ class Api::V1::UsersController < Api::V1::ApplicationController
 
   def create_profile_params
     params.require(:user).permit(:first_name, :last_name, :dob, :image, :phone, :country_code, :location, :lat, :lng)
-  end
-
-  def hmac_secret
-    'my$ecretK3ynasbdgwejh34786&^&^V&3ytgrdcejg((**&^@#&$%^&'
   end
 
   def expire_time
