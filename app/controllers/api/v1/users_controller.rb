@@ -53,7 +53,7 @@ class Api::V1::UsersController < Api::V1::ApplicationController
 
   def forgot_password
     begin
-      raise "Email not present" if params[:email].present?
+      raise "Email not present" unless params[:email].present?
       @user = User.find_by(email: params[:email])
       raise "Email address not found. Please check and try again." unless @user.present?
       @user.generate_password_token!
